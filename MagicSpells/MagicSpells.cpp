@@ -60,6 +60,7 @@ class SpellJournal {
 }; 
 string SpellJournal::journal = "";
 
+// This is a longest common subsequence (LCS) algorithm
 void counterspell(Spell *spell) {
 
   /* Enter your code here */
