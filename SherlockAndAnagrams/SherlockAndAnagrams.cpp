@@ -8,11 +8,37 @@
 
 using namespace std;
 
+bool checkAnagrams( string comparison, string target) {
+    try {    
+        // Check if the 'comparison' and 'target' substrings are anagrams.
+        // Iterate through each character of 'comparison' substring.
+        for( size_t internalCompIndex = 0; internalCompIndex < comparison.size(); internalCompIndex++ ) {
+            // use std::string::find() to determine if that char exists in 'target' substring.
+            // If it does, remove that char from 'target' substring and continue.
+            // If it does not, end the search on that 'target' substring.
+            char character = comparison[internalCompIndex];
+            size_t indexFound = target.find(character);
+            if( indexFound == std::string::npos ) {
+                throw std::exception();
+            }
+            else {
+                target.erase(target.begin() + indexFound);
+            }
+        }
+    } 
+    catch( std::exception& ) {
+        cout << "no match" << endl;
+        return false;
+    }
+
+    return true;
+}
+
 // Complete the sherlockAndAnagrams function below.
 int sherlockAndAnagrams(string s) {
     cout << "begin" << endl;
-    typedef unique_ptr< vector<int> > VectorPtr;
-    std::map<const char, VectorPtr> indexMap;
+    typedef unique_ptr< vector<string> > VectorPtr;
+    std::map<size_t, VectorPtr> substrMap;
 
     int n = s.size();
     int total = 0;
@@ -33,28 +59,10 @@ int sherlockAndAnagrams(string s) {
                 cout << "targeting..." << endl;
                 string target = s.substr(startingTargetIndex, substringSize);
                 cout << target << endl;
-                try {
-                    // Check if the 'comparison' and 'target' substrings are anagrams.
-                    // Iterate through each character of 'comparison' substring.
-                    for( size_t internalCompIndex = 0; internalCompIndex < comparison.size(); internalCompIndex++ ) {
-                        // use std::string::find() to determine if that char exists in 'target' substring.
-                        // If it does, remove that char from 'target' substring and continue.
-                        // If it does not, end the search on that 'target' substring.
-                        char character = comparison[internalCompIndex];
-                        size_t indexFound = target.find(character);
-                        if( indexFound == std::string::npos ) {
-                            throw std::exception();
-                        }
-                        else {
-                            target.erase(target.begin() + indexFound);
-                        }
-                    }
+                if( checkAnagrams(comparison, target) ) {
                     // Add to the total anagram count.
                     total++;
                     cout << "it's a match! Total anagrams: " << total << endl;
-                }
-                catch( std::exception& ) {
-                    cout << "no match" << endl;
                 }
             }
         }
