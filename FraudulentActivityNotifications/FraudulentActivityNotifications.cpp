@@ -1,6 +1,7 @@
 #include <bits/stdc++.h>
 
 #include <algorithm>
+#include <cmath>
 
 using namespace std;
 
@@ -10,39 +11,46 @@ vector<string> split_string(string);
 int activityNotifications(vector<int> expenditure, int d) {
     int numNotifications = 0;
 
-    vector<int> lookbackExpenditures(d);
+    // Initialize the sorted lookback vector
+    vector<int> sortedLookback(d);
     for( size_t day = 0; day < d; day++ ) {
-        lookbackExpenditures[day] = expenditure[day];
+        sortedLookback[day] = expenditure[day];
     }
 
-    for( size_t day = d; day < expenditure.size(); day++ ) {
-        // Sort all applicable indexes
-        vector<int> sortedLookback(lookbackExpenditures);
-        std::sort(sortedLookback.begin(), sortedLookback.end());
+    std::sort(sortedLookback.begin(), sortedLookback.end());
 
-        int median;
+    // Once the lookback data is initialized, begin iterating through
+    // the expenditure data.
+    for( size_t day = d; day <= expenditure.size(); day++ ) {
+        float median;
         if( d % 2 == 0 ) { // even
             size_t upperIndex = d / 2;
             size_t lowerIndex = upperIndex - 1;
-
-            median = sortedLookback[upperIndex] + sortedLookback[lowerIndex] / 2;
+            float sum = sortedLookback[upperIndex] + sortedLookback[lowerIndex];
+            median = sum / 2;
         }
         else { // odd
             size_t medianIndex = (d - 1) / 2;
-            cout << "medIdx: " << medianIndex << endl;
             median = sortedLookback[medianIndex];
         }
 
         int potentialFraud = expenditure[day];
-        cout << "pot: " << potentialFraud << " med: " << median << endl;
         if( potentialFraud >= 2*median ) {
-            cout << "day: " << day << endl;
             numNotifications++;
         }
 
-        lookbackExpenditures.erase(lookbackExpenditures.begin());
-        lookbackExpenditures.push_back(potentialFraud);
+        // Update the lookback data by removing the expired day's value
+        // and inserting the current day's value for next time around.
+        int expiredValue = expenditure[day-d];
+        // Utilize std::lower_bound() to employ binary search on our sorted data. Using std::remove() has worse
+        // time complexity because it assumes the data structure is unsorted.
+        sortedLookback.erase(std::lower_bound(sortedLookback.begin(), sortedLookback.end(), expiredValue));
+        // Insert the new data point in a sorted fashion by finding the first iterator that is greater than the new value (using std::upper_bound),
+        // and then call insert(), which places the new value before the iterator returned by std::upper_bound(). This allows
+        // the list to stay sorted at all times without needing to re-sort.
+        sortedLookback.insert( std::upper_bound(sortedLookback.begin(), sortedLookback.end(), potentialFraud), potentialFraud );
     }
+    
     return numNotifications;
 }
 
