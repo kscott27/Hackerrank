@@ -8,67 +8,137 @@
 
 using namespace std;
 
-bool checkAnagrams( string comparison, string target) {
-    try {    
-        // Check if the 'comparison' and 'target' substrings are anagrams.
-        // Iterate through each character of 'comparison' substring.
-        for( size_t internalCompIndex = 0; internalCompIndex < comparison.size(); internalCompIndex++ ) {
-            // use std::string::find() to determine if that char exists in 'target' substring.
-            // If it does, remove that char from 'target' substring and continue.
-            // If it does not, end the search on that 'target' substring.
-            char character = comparison[internalCompIndex];
-            size_t indexFound = target.find(character);
-            if( indexFound == std::string::npos ) {
-                throw std::exception();
-            }
-            else {
-                target.erase(target.begin() + indexFound);
-            }
-        }
-    } 
-    catch( std::exception& ) {
-        cout << "no match" << endl;
-        return false;
-    }
 
-    return true;
+namespace helpers {
+    typedef shared_ptr< vector<size_t> >      VectorPtr;
+    typedef shared_ptr< vector<std::string> > StringVectorPtr;
+    typedef std::map<char, VectorPtr>         IndexMap;
+    typedef std::map<size_t, StringVectorPtr> StringMap;
+
+    void createIndexMap( IndexMap&, std::string& );
+    void refineIndexMap( IndexMap& );
+    void createSortedIndexList( IndexMap&, VectorPtr& );
+    void createSubStrMap( StringMap&, VectorPtr&, std::string& );
+    void insertSubStr( StringMap&, std::string );
+    size_t countAnagrams( StringMap& );
 }
 
-// Complete the sherlockAndAnagrams function below.
-int sherlockAndAnagrams(string s) {
-    cout << "begin" << endl;
-    typedef unique_ptr< vector<string> > VectorPtr;
-    std::map<size_t, VectorPtr> substrMap;
+void helpers::createIndexMap( IndexMap& m, std::string& s ) {
+    // Locate all characters that repeat (capable of creating potential
+    // anagrams).
+    for( size_t index = 0; index < s.size(); index++ ) {
+        try {
+            // Throws if the key does not exist.
+            helpers::VectorPtr value = m.at(s[index]);
 
-    int n = s.size();
-    int total = 0;
+            value->push_back(index);
+        }
+        catch(...) {
+            helpers::VectorPtr indexList(new std::vector<size_t>);
+            indexList->push_back(index);
+            std::pair<helpers::IndexMap::iterator, bool> result = m.insert({s[index], indexList});
+        }
+    }
+}
 
-    // Iterate through all sizes of substrings, from 1-char
-    // to n-char.
-    for( size_t substringSize = 1; substringSize < n; substringSize++ ) {
+// Remove all characters that do not repeat from the map.
+void helpers::refineIndexMap( IndexMap& m ) {
+    for( helpers::IndexMap::iterator it = m.begin(); it != m.end(); ) {
+        if( it->second->size() < 2 ) {
+            // Need to do some tip-toeing here to ensure that an
+            // erased iterator does not receive an increment attempt.
+            m.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+}
 
-        // Iterate through each substring of the given size as the
-        // 'comparison' substring.
-        for( size_t startingCompIndex = 0; startingCompIndex + substringSize <= n; startingCompIndex++ ) {
-            cout << "comparing..." << endl;
-            string comparison = s.substr(startingCompIndex, substringSize);
-            cout << comparison << endl;
-            // Iterate through each subsequent 'target' substring from the
-            // current 'comparison' substring
-            for( size_t startingTargetIndex = startingCompIndex + 1; startingTargetIndex + substringSize <= n; startingTargetIndex++) {
-                cout << "targeting..." << endl;
-                string target = s.substr(startingTargetIndex, substringSize);
-                cout << target << endl;
-                if( checkAnagrams(comparison, target) ) {
-                    // Add to the total anagram count.
-                    total++;
-                    cout << "it's a match! Total anagrams: " << total << endl;
+void helpers::createSortedIndexList( IndexMap& iMap, VectorPtr& sortedList ) {
+    for( auto& it : iMap ) {
+        VectorPtr vec = it.second;
+        for( auto& index : *vec ) {
+            sortedList->push_back(index);
+        }
+    }
+
+    std::sort(sortedList->begin(), sortedList->end());
+}
+
+void helpers::createSubStrMap( StringMap& sMap, VectorPtr& iList, std::string& s ) {
+    for( auto& index : *iList ) {
+        // Collect all substrings, iterating to the right
+        for( size_t length = 1; length <= s.size() - index; length++ ) {
+            std::string substr = s.substr(index, length);
+            helpers::insertSubStr(sMap, substr);
+        }
+
+        // Collect all substrings, iterating to the left, avoiding any new substrings
+        // resulting from a newly collected repeating character
+        size_t length = 2;
+        for( int startingIndex = index - 1; startingIndex >= 0; startingIndex-- ) {
+            if( std::find(iList->begin(), iList->end(), startingIndex) == iList->end() ) {
+                std::string substr = s.substr(startingIndex, length);
+                helpers::insertSubStr(sMap, substr);
+            }
+            length++;
+        }
+    }
+}
+
+// Insert substrings into a map, with length as the key, after sorting
+// each substring first.
+void helpers::insertSubStr( StringMap& sMap, std::string subStr ) {
+    try {
+        // Throws if the key does not exist.
+        helpers::StringVectorPtr value = sMap.at(subStr.size());
+        std::sort(subStr.begin(), subStr.end());
+        value->push_back(subStr);
+    }
+    catch(...) {
+        helpers::StringVectorPtr subStrList(new std::vector<std::string>);
+        std::sort(subStr.begin(), subStr.end());
+        subStrList->push_back(subStr);
+        std::pair<helpers::StringMap::iterator, bool> result = sMap.insert({subStr.size(), subStrList});
+    }
+}
+
+size_t helpers::countAnagrams( StringMap& sMap ) {
+    size_t totalAnagrams = 0;
+    for( helpers::StringMap::iterator it = sMap.begin(); it != sMap.end(); it++ ) {
+        if( it->first == sMap.size() ) {
+            break;
+        }
+        StringVectorPtr stringList = it->second;
+        for( size_t comparisonIndex = 0; comparisonIndex < stringList->size(); comparisonIndex++ ) {
+            std::string comparison = stringList->at(comparisonIndex);
+            for( size_t targetIndex = comparisonIndex + 1; targetIndex < stringList->size(); targetIndex++ ) {
+                std::string target = stringList->at(targetIndex);
+                std::string debugTarget = target;
+                if( comparison.compare(target) == 0 ) {
+                    totalAnagrams++;
                 }
             }
         }
     }
+    return totalAnagrams;
+}
 
-    return total;
+// Complete the sherlockAndAnagrams function below.
+int sherlockAndAnagrams(string s) {
+    helpers::IndexMap  indexMap;
+    helpers::VectorPtr sortedIndexList( new vector<size_t> );
+
+    helpers::createIndexMap(indexMap, s);
+    helpers::refineIndexMap(indexMap);
+    helpers::createSortedIndexList(indexMap, sortedIndexList);
+
+    // Create map of potential anagram substrings with length as the key.
+    helpers::StringMap stringMap;
+    helpers::createSubStrMap(stringMap, sortedIndexList, s);
+
+    return helpers::countAnagrams(stringMap);
 }
 
 int main()
